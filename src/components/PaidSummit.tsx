@@ -1,156 +1,191 @@
-import { Fragment, useEffect, useLayoutEffect, useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { Anchor, Armchair, Car, Lamp } from 'lucide-react'
+import { Fragment, useEffect, useLayoutEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { BedDouble, ConciergeBell, Utensils } from "lucide-react";
 
 /* ------------------------------------------------------------------ *
- * PAID — Pan African Interior & Design summit. Continuous looping promo.
+ * AMBER — Amber Hospitality. Continuous looping brand promo.
  * One central <stage> of fixed design size, scaled to fit the viewport.
- * A phase driver steps through the script; elements read their target
- * per-phase and Motion tweens between them.
+ * A step driver walks the script; elements read their target per-step
+ * and Motion tweens between them. The closing section is a data-driven
+ * "welcome" sequence (English alone, then greetings four at a time).
  * ------------------------------------------------------------------ */
 
-type Phase =
-  | 'intro'
-  | 'shrinkPaid'
-  | 'type1'
-  | 'type2'
-  | 'type3'
-  | 'toBlue'
-  | 'ballSweep'
-  | 'carouselIntro'
-  | 'culture'
-  | 'wellbeing'
-  | 'sustainability'
-  | 'future'
-  | 'outro'
-
-const PHASES: { name: Phase; ms: number }[] = [
-  { name: 'intro', ms: 1500 },
-  { name: 'shrinkPaid', ms: 1100 },
-  { name: 'type1', ms: 3300 },
-  { name: 'type2', ms: 3100 },
-  { name: 'type3', ms: 3100 },
-  { name: 'toBlue', ms: 1500 },
-  { name: 'ballSweep', ms: 2400 },
-  { name: 'carouselIntro', ms: 1900 },
-  { name: 'culture', ms: 1900 },
-  { name: 'wellbeing', ms: 1900 },
-  { name: 'sustainability', ms: 1900 },
-  { name: 'future', ms: 1900 },
-  { name: 'outro', ms: 2800 },
-]
-
 // Design constants (px). Stage is scaled to fit the viewport.
-const STAGE_W = 900
-const STAGE_H = 340
-const NARROW_W = 196 // slightly wider than half the ball (BALL/2 = 170)
-const BALL = STAGE_H // ball diameter == box height
+const STAGE_W = 900;
+const STAGE_H = 340;
+const NARROW_W = 196; // slightly wider than half the ball (BALL/2 = 170)
+const BALL = STAGE_H; // ball diameter == box height
 
-const NAVY = '#15306b'
-const RED = '#e11530'
-const WHITE = '#ffffff'
-const INK = '#101828'
+const GOLD = "#deb100"; // primary
+const CHARCOAL = "#373737"; // secondary — dark surfaces + text
+const LIGHT = "rgb(236, 236, 236)"; // secondary — light surface
 // Zero-alpha stops that share the RGB of the colour they fade to/from, so the
 // tween only changes alpha (no grey "ghost" midtone — Motion mixes RGB and
 // alpha independently).
-const TRANSP_W = 'rgba(255,255,255,0)' // <-> white
-const TRANSP_N = 'rgba(21,48,107,0)' //   <-> navy (#15306b)
+const TRANSP_W = "rgba(236, 236, 236, 0)"; // <-> light
+const TRANSP_C = "rgba(55, 55, 55, 0)"; //   <-> charcoal (#373737)
 
-const S1 = 'A virtual summit of global design voices, consciously shaping…'
-const S2 = 'the Pan-African interior design voice around professionalism,'
-const S3 = 'culture, well-being and the future of spaces.'
+const S1 =
+  "Welcome to Amber Hospitality, a hospitality management and development...";
+const S2 =
+  "company, created by hoteliers and financial professionals in Africa, to bring";
+const S3 =
+  "trusted expertise and exceptional professional hospitality management solutions.";
 
-const NARROW_PHASES: Phase[] = [
-  'ballSweep',
-  'carouselIntro',
-  'culture',
-  'wellbeing',
-  'sustainability',
-  'future',
-  'outro', // stays narrow + fades out; the full white panel fades in over it
-]
+/* ----------------------------- welcome data ----------------------- */
 
-type IconName = 'ball' | 'chair' | 'car' | 'anchor' | 'lamp'
+type Greeting = { hi: string; lang: string };
+
+// English stands alone (slide 0); the rest are shown four at a time.
+const GREETINGS: Greeting[] = [
+  { hi: "WELCOME", lang: "English" },
+  { hi: "Sawubona", lang: "IsiZulu" },
+  { hi: "Wamkelekile", lang: "Xhosa" },
+  { hi: "Samukele", lang: "Ndebele" },
+  { hi: "Welkom", lang: "Afrikaans" },
+  { hi: "Titambirei", lang: "Shona" },
+  { hi: "Akwaaba", lang: "Twi" },
+  { hi: "Wòezɔ", lang: "Ewe" },
+  { hi: "Ẹ káàbọ̀", lang: "Yoruba" },
+  { hi: "Nnọọ", lang: "Igbo" },
+  { hi: "Barka da Zuwa", lang: "Hausa" },
+  { hi: "Obokhian", lang: "Bini" },
+  { hi: "Koyo", lang: "Etsako" },
+  { hi: "Dalal ak jàmm", lang: "Wolof" },
+  { hi: "Karibu", lang: "Swahili" },
+  { hi: "Kulikayo", lang: "Luganda" },
+  { hi: "Kabo", lang: "Krio" },
+  { hi: "Mbote", lang: "Lingala" },
+  { hi: "Do Waye", lang: "Bari" },
+  { hi: "Mwaiseni", lang: "Bemba" },
+  { hi: "Takulandirani", lang: "Chichewa" },
+  { hi: "እንኳን ደህና መጣህ", lang: "Amharic" },
+  { hi: "Baga Nagaan Dhuftee", lang: "Oromo" },
+  { hi: "Murakaza neza", lang: "Kinyarwanda" },
+  { hi: "Soo dhowaada", lang: "Somali" },
+  { hi: "ⴰⵏⵚⵓⴼ ⵢⵉⵙ ⵡⴻⵏ", lang: "Tamazight (Moroccan Berber)" },
+  { hi: "أهلاً وسهلاً", lang: "Arabic" },
+  { hi: "Avilakoa", lang: "Fur (Sudan)" },
+  { hi: "Oi", lang: "Kriolu (Cape Verde)" },
+  { hi: "Marhaba", lang: "Northern African Arabic" },
+];
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+// Slide 0 = English alone; the remaining greetings in groups of four.
+const WELCOME_SLIDES: Greeting[][] = [
+  [GREETINGS[0]],
+  ...chunk(GREETINGS.slice(1), 4),
+];
+
+/* ----------------------------- icons ------------------------------ */
+
+type IconName = "ball" | "bell" | "bed" | "dine";
+
+// Three hospitality icons that alternate across the welcome slides.
+const HOSP: IconName[] = ["bell", "bed", "dine"];
+
+/* ----------------------------- steps ------------------------------ */
+
+type Kind =
+  | "intro"
+  | "shrinkLogo"
+  | "type1"
+  | "type2"
+  | "type3"
+  | "toBlue"
+  | "ballSweep"
+  | "welcome"
+  | "outro";
+
+type Step = { kind: Kind; ms: number; slide?: number };
+
+const STEPS: Step[] = [
+  { kind: "intro", ms: 1500 },
+  { kind: "shrinkLogo", ms: 1100 },
+  { kind: "type1", ms: 3300 },
+  { kind: "type2", ms: 3100 },
+  { kind: "type3", ms: 3100 },
+  { kind: "toBlue", ms: 1500 },
+  { kind: "ballSweep", ms: 2400 },
+  ...WELCOME_SLIDES.map((s, idx) => ({
+    kind: "welcome" as const,
+    ms: s.length === 1 ? 1600 : 1900,
+    slide: idx,
+  })),
+  { kind: "outro", ms: 2800 },
+];
+
+const NARROW: Kind[] = ["ballSweep", "welcome"];
 
 /* ----------------------------- helpers ---------------------------- */
 
-function boxTarget(p: Phase) {
-  const width = NARROW_PHASES.includes(p) ? NARROW_W : STAGE_W
-  let backgroundColor = WHITE
-  if (p === 'shrinkPaid' || p === 'type1' || p === 'type2') {
-    backgroundColor = TRANSP_W // fading down from the white intro box
-  } else if (p === 'type3') {
-    backgroundColor = TRANSP_N // pre-tinted navy so toBlue fades in clean
-  } else if (p === 'toBlue' || p === 'ballSweep' || p === 'carouselIntro') {
-    backgroundColor = NAVY
-  } else if (p === 'outro') {
-    backgroundColor = TRANSP_W // narrow white box fades out under the panel
+function boxTarget(k: Kind) {
+  const width = NARROW.includes(k) ? NARROW_W : STAGE_W;
+  let backgroundColor = LIGHT;
+  if (k === "shrinkLogo" || k === "type1" || k === "type2") {
+    backgroundColor = TRANSP_W; // fading down from the light intro box
+  } else if (k === "type3") {
+    backgroundColor = TRANSP_C; // pre-tinted charcoal so toBlue fades in clean
+  } else if (k === "toBlue" || k === "ballSweep") {
+    backgroundColor = CHARCOAL;
   }
-  return { width, backgroundColor }
+  return { width, backgroundColor };
 }
 
-function paidTarget(p: Phase) {
-  if (p === 'intro') return { top: '50%', scale: 1, opacity: 1 }
-  if (p === 'outro') return { top: '50%', scale: 1, opacity: 0 }
+function logoTarget(k: Kind) {
+  if (k === "intro") return { top: "50%", scale: 1, opacity: 1 };
+  if (k === "outro") return { top: "50%", scale: 1, opacity: 0 };
   const visible =
-    p === 'shrinkPaid' || p === 'type1' || p === 'type2' || p === 'type3'
-  return { top: '78%', scale: 0.4, opacity: visible ? 1 : 0 }
+    k === "shrinkLogo" || k === "type1" || k === "type2" || k === "type3";
+  return { top: "78%", scale: 0.4, opacity: visible ? 1 : 0 };
 }
 
-function iconFor(p: Phase): IconName | null {
-  if (p === 'toBlue' || p === 'ballSweep' || p === 'carouselIntro') return 'ball'
-  if (p === 'culture') return 'chair'
-  if (p === 'wellbeing') return 'car'
-  if (p === 'sustainability') return 'anchor'
-  if (p === 'future') return 'lamp'
-  return null
+function iconFor(step: Step): IconName | null {
+  if (step.kind === "toBlue" || step.kind === "ballSweep") return "ball";
+  if (step.kind === "welcome") return HOSP[(step.slide ?? 0) % HOSP.length];
+  return null;
 }
 
-type CarouselData =
-  | { kind: 'triple' }
-  | { kind: 'single'; text: string }
-  | null
-
-function carouselFor(p: Phase): CarouselData {
-  if (p === 'carouselIntro') return { kind: 'triple' }
-  if (p === 'culture') return { kind: 'single', text: 'culture' }
-  if (p === 'wellbeing') return { kind: 'single', text: 'well being' }
-  if (p === 'sustainability') return { kind: 'single', text: 'sustainability' }
-  if (p === 'future') return { kind: 'single', text: 'the future of spaces' }
-  return null
+function welcomeFor(step: Step): Greeting[] | null {
+  return step.kind === "welcome" ? WELCOME_SLIDES[step.slide ?? 0] : null;
 }
 
-function sentenceFor(p: Phase): string | null {
-  if (p === 'type1') return S1
-  if (p === 'type2') return S2
-  if (p === 'type3') return S3
-  return null
+function sentenceFor(k: Kind): string | null {
+  if (k === "type1") return S1;
+  if (k === "type2") return S2;
+  if (k === "type3") return S3;
+  return null;
 }
 
 /* ----------------------------- pieces ----------------------------- */
 
 /** Reveals `text` one word at a time; each word fades in and slides down slightly. */
 function TypeWords({ text, speed = 200 }: { text: string; speed?: number }) {
-  const reduce = useReducedMotion()
-  const words = text.split(' ')
-  const [n, setN] = useState(0)
+  const reduce = useReducedMotion();
+  const words = text.split(" ");
+  const [n, setN] = useState(0);
 
   useEffect(() => {
     if (reduce) {
-      setN(words.length)
-      return
+      setN(words.length);
+      return;
     }
-    setN(0)
-    let i = 0
+    setN(0);
+    let i = 0;
     const id = setInterval(() => {
-      i += 1
-      setN(i)
-      if (i >= words.length) clearInterval(id)
-    }, speed)
-    return () => clearInterval(id)
+      i += 1;
+      setN(i);
+      if (i >= words.length) clearInterval(id);
+    }, speed);
+    return () => clearInterval(id);
     // words is derived from text; depending on text keeps this stable
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, speed, reduce])
+  }, [text, speed, reduce]);
 
   return (
     <>
@@ -164,11 +199,11 @@ function TypeWords({ text, speed = 200 }: { text: string; speed?: number }) {
           >
             {w}
           </motion.span>
-          {idx < words.length - 1 ? ' ' : ''}
+          {idx < words.length - 1 ? " " : ""}
         </Fragment>
       ))}
     </>
-  )
+  );
 }
 
 /** Hand-drawn ball with a meridian + orbiting marker so its spin reads. */
@@ -184,40 +219,38 @@ function BallIcon() {
       </g>
       <circle cx="50" cy="14" r="5" fill="currentColor" />
     </svg>
-  )
+  );
 }
 
-function LucideGlyph({ name }: { name: Exclude<IconName, 'ball'> }) {
-  const props = { strokeWidth: 1.4 as const, className: 'h-[56%] w-[56%]' }
+function LucideGlyph({ name }: { name: Exclude<IconName, "ball"> }) {
+  const props = { strokeWidth: 1.4 as const, className: "h-[56%] w-[56%]" };
   switch (name) {
-    case 'chair':
-      return <Armchair {...props} />
-    case 'car':
-      return <Car {...props} />
-    case 'anchor':
-      return <Anchor {...props} />
-    case 'lamp':
-      return <Lamp {...props} />
+    case "bell":
+      return <ConciergeBell {...props} />;
+    case "bed":
+      return <BedDouble {...props} />;
+    case "dine":
+      return <Utensils {...props} />;
     default: {
-      const _exhaustive: never = name
-      return _exhaustive
+      const _exhaustive: never = name;
+      return _exhaustive;
     }
   }
 }
 
 /** Icon anchored so its centre rides the box's right edge (overflow = half). */
 function IconStage({ name }: { name: IconName | null }) {
-  const reduce = useReducedMotion()
+  const reduce = useReducedMotion();
   return (
     <div
       className="pointer-events-none"
       style={{
-        position: 'absolute',
-        top: '50%',
+        position: "absolute",
+        top: "50%",
         right: 0,
-        height: '100%',
-        aspectRatio: '1',
-        transform: 'translate(50%,-50%)',
+        height: "100%",
+        aspectRatio: "1",
+        transform: "translate(50%,-50%)",
       }}
     >
       <AnimatePresence>
@@ -225,20 +258,22 @@ function IconStage({ name }: { name: IconName | null }) {
           <motion.div
             key={name}
             className="absolute inset-0 flex items-center justify-center"
-            style={{ color: name === 'ball' ? WHITE : NAVY }}
-            initial={name === 'ball' ? { opacity: 0 } : { opacity: 0, y: '40%' }}
+            style={{ color: name === "ball" ? GOLD : CHARCOAL }}
+            initial={
+              name === "ball" ? { opacity: 0 } : { opacity: 0, y: "40%" }
+            }
             animate={{ opacity: 1, y: 0 }}
-            exit={name === 'ball' ? { opacity: 0 } : { opacity: 0, y: '-28%' }}
+            exit={name === "ball" ? { opacity: 0 } : { opacity: 0, y: "-28%" }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           >
-            {name === 'ball' ? (
+            {name === "ball" ? (
               <motion.div
                 className="h-full w-full"
                 animate={reduce ? undefined : { rotate: 360 }}
                 transition={
                   reduce
                     ? undefined
-                    : { repeat: Infinity, ease: 'linear', duration: 6 }
+                    : { repeat: Infinity, ease: "linear", duration: 6 }
                 }
               >
                 <BallIcon />
@@ -250,163 +285,162 @@ function IconStage({ name }: { name: IconName | null }) {
         )}
       </AnimatePresence>
     </div>
-  )
+  );
 }
 
-/** Right-side text: 3-line intro, then single swapping pillars. */
-function Carousel({ data }: { data: CarouselData }) {
+/** Right-side welcome text: one greeting (English) or four at a time. */
+function WelcomePanel({
+  items,
+  slideKey,
+}: {
+  items: Greeting[] | null;
+  slideKey: number;
+}) {
+  const big = items?.length === 1;
   return (
     <div
-      className="flex items-center justify-center text-center"
+      className="flex items-center justify-center"
       style={{
-        position: 'absolute',
-        top: '50%',
+        position: "absolute",
+        top: "50%",
         right: 0,
-        width: STAGE_W * 0.5,
-        transform: 'translateY(-50%)',
+        width: STAGE_W * 0.52,
+        transform: "translateY(-50%)",
       }}
     >
       <AnimatePresence mode="wait">
-        {data?.kind === 'triple' && (
+        {items && (
           <motion.div
-            key="triple"
-            className="flex w-full flex-col items-center gap-6 text-white"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, delay: 0.15 }}
-          >
-            <span className="text-[28px] font-semibold">three days</span>
-            <span className="text-[28px] font-semibold">global voices</span>
-            <span className="text-[28px] font-semibold">key notes &amp; conversation</span>
-          </motion.div>
-        )}
-        {data?.kind === 'single' && (
-          <motion.div
-            key={data.text}
-            className="w-full text-[40px] font-semibold text-white"
-            initial={{ opacity: 0, y: -26 }}
+            key={slideKey}
+            className="flex w-full flex-col items-center gap-4 text-center"
+            initial={{ opacity: 0, y: -22 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 26 }}
+            exit={{ opacity: 0, y: 22 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           >
-            {data.text}
+            {items.map((g, idx) => (
+              <div
+                key={idx}
+                className="flex flex-col items-center leading-tight"
+              >
+                <span
+                  className="font-semibold text-white"
+                  style={{ fontSize: big ? 56 : 30 }}
+                >
+                  {g.hi}
+                </span>
+                <span
+                  className="mt-1 font-semibold uppercase tracking-[0.18em]"
+                  style={{ color: GOLD, fontSize: big ? 14 : 12 }}
+                >
+                  {g.lang}
+                </span>
+              </div>
+            ))}
           </motion.div>
         )}
       </AnimatePresence>
     </div>
-  )
+  );
 }
 
 /* ----------------------------- main ------------------------------- */
 
 function useFitScale(designW: number, designH: number, pad = 40) {
-  const [scale, setScale] = useState(1)
+  const [scale, setScale] = useState(1);
   // useLayoutEffect so the first measured scale is applied before paint (no flash).
   useLayoutEffect(() => {
     const calc = () => {
-      const w = (window.innerWidth - pad * 2) / designW
-      const h = (window.innerHeight - pad * 2) / designH
-      setScale(Math.min(1, w, h))
-    }
-    calc()
-    window.addEventListener('resize', calc)
-    return () => window.removeEventListener('resize', calc)
-  }, [designW, designH, pad])
-  return scale
+      const w = (window.innerWidth - pad * 2) / designW;
+      const h = (window.innerHeight - pad * 2) / designH;
+      setScale(Math.min(1, w, h));
+    };
+    calc();
+    window.addEventListener("resize", calc);
+    return () => window.removeEventListener("resize", calc);
+  }, [designW, designH, pad]);
+  return scale;
 }
 
 export default function PaidSummit() {
-  const [i, setI] = useState(0)
-  const phase = PHASES[i].name
-  const scale = useFitScale(STAGE_W + BALL / 2, STAGE_H)
+  const [i, setI] = useState(0);
+  const step = STEPS[i];
+  const kind = step.kind;
+  const scale = useFitScale(STAGE_W + BALL / 2, STAGE_H);
 
   useEffect(() => {
     const t = setTimeout(
-      () => setI((p) => (p + 1) % PHASES.length),
-      PHASES[i].ms,
-    )
-    return () => clearTimeout(t)
-  }, [i])
+      () => setI((p) => (p + 1) % STEPS.length),
+      STEPS[i].ms
+    );
+    return () => clearTimeout(t);
+  }, [i]);
 
-  const sentence = sentenceFor(phase)
-  const isOutro = phase === 'outro'
+  const sentence = sentenceFor(kind);
+  const welcome = welcomeFor(step);
+  const isOutro = kind === "outro";
 
   return (
     <main
       className="flex min-h-screen items-center justify-center overflow-hidden bg-black"
-      aria-label="PAID — Pan African Interior & Design"
+      aria-label="Amber Hospitality"
     >
       {/* Static text alternative for assistive tech; the animation is decorative. */}
       <p className="sr-only">
-        PAID — Pan African Interior &amp; Design. A virtual summit of global
-        design voices, consciously shaping the Pan-African interior design voice
-        around professionalism, culture, well-being and the future of spaces.
-        Three days, global voices, key notes &amp; conversation. May 7–9, 2026.
-        Curating our future.
+        Amber Hospitality. Welcome to Amber Hospitality, a hospitality
+        management and development company, created by hoteliers and financial
+        professionals in Africa, to bring trusted expertise and exceptional
+        professional hospitality management solutions. Hospitality is Our DNA.
+        Welcome — in the languages of Africa. The Foremost African Indigenous
+        Hospitality Brand.
       </p>
       <div style={{ transform: `scale(${scale})` }} aria-hidden="true">
-        <div style={{ position: 'relative', width: STAGE_W, height: STAGE_H }}>
-          {/* The box (white -> transparent -> navy -> white), shrinking from the right.
-              At intro it snaps back to full-width white instantly, hidden under the
-              fading outro panel, so the loop never shows a width "grow". */}
+        <div style={{ position: "relative", width: STAGE_W, height: STAGE_H }}>
+          {/* The box: light -> transparent -> charcoal -> light. Shrinks from the
+              right during the ball sweep, then expands back out for the outro. */}
           <motion.div
             className="absolute left-0 top-0 overflow-visible"
             style={{ height: STAGE_H, borderRadius: 6 }}
-            animate={boxTarget(phase)}
+            animate={boxTarget(kind)}
             transition={{
-              duration:
-                phase === 'intro' ? 0 : phase === 'ballSweep' ? 1.9 : 1.0,
+              duration: kind === "ballSweep" ? 1.9 : 1.0,
               ease: [0.6, 0, 0.3, 1],
             }}
           >
-            {/* PAN AFRICAN INTERIOR & — top right, only during intro */}
+            {/* Brand line — top left, only during intro */}
             <motion.div
               className="absolute left-8 top-6 text-left leading-tight"
-              style={{ color: INK }}
-              animate={{ opacity: phase === 'intro' ? 1 : 0 }}
+              style={{ color: CHARCOAL }}
+              animate={{ opacity: kind === "intro" ? 1 : 0 }}
               transition={{ duration: 0.6 }}
             >
               <p className="text-sm font-semibold uppercase tracking-[0.22em]">
-                Pan African
+                Hospitality &amp;
                 <br />
-                Interior &amp;
+                Management
               </p>
             </motion.div>
 
-            {/* Date — fades in on blue, then fades out across the whole sweep */}
+            {/* Tagline — fades in on charcoal, then out across the whole sweep */}
             <motion.div
               className="absolute left-10 top-1/2 -translate-y-1/2 text-white"
-              animate={{ opacity: phase === 'toBlue' ? 1 : 0 }}
+              style={{ width: 380 }}
+              animate={{ opacity: kind === "toBlue" ? 1 : 0 }}
               transition={{
-                duration: phase === 'ballSweep' ? 1.7 : 0.7,
-                delay: phase === 'ballSweep' ? 0.2 : 0,
+                duration: kind === "ballSweep" ? 1.7 : 0.7,
+                delay: kind === "ballSweep" ? 0.2 : 0,
               }}
             >
               <p className="text-[34px] font-semibold leading-tight">
-                May 7–
-                <br />9, 2026
+                Hospitality is Our DNA
               </p>
             </motion.div>
 
-            <IconStage name={iconFor(phase)} />
+            <IconStage name={iconFor(step)} />
           </motion.div>
 
-          {/* Right-side rotating text */}
-          <Carousel data={carouselFor(phase)} />
-
-          {/* Full-width white panel — fades in for the outro (no width "grow") */}
-          <motion.div
-            className="pointer-events-none absolute left-0 top-0"
-            style={{
-              width: STAGE_W,
-              height: STAGE_H,
-              backgroundColor: WHITE,
-              borderRadius: 6,
-            }}
-            animate={{ opacity: isOutro ? 1 : 0 }}
-            transition={{ duration: 0.6 }}
-          />
+          {/* Right-side welcome greetings */}
+          <WelcomePanel items={welcome} slideKey={step.slide ?? -1} />
 
           {/* Outro headline */}
           <motion.div
@@ -414,38 +448,45 @@ export default function PaidSummit() {
             animate={{ opacity: isOutro ? 1 : 0, scale: isOutro ? 1 : 0.96 }}
             transition={{ duration: 0.7, delay: isOutro ? 0.5 : 0 }}
           >
-            <span className="text-5xl font-bold" style={{ color: INK }}>
-              curating our future
+            <span
+              className="text-center text-[40px] font-bold leading-tight"
+              style={{
+                color: CHARCOAL,
+                display: "inline-block",
+                maxWidth: 680,
+              }}
+            >
+              The Foremost African Indigenous Hospitality Brand
             </span>
           </motion.div>
 
-          {/* PAID */}
+          {/* AMBER wordmark */}
           <motion.div
             className="absolute"
-            style={{ left: '50%' }}
-            animate={{ x: '-50%', y: '-50%', ...paidTarget(phase) }}
+            style={{ left: "50%" }}
+            animate={{ x: "-50%", y: "-50%", ...logoTarget(kind) }}
             transition={{
-              duration: phase === 'shrinkPaid' ? 0.9 : 0.6,
+              duration: kind === "shrinkLogo" ? 0.9 : 0.6,
               ease: [0.22, 1, 0.36, 1],
             }}
           >
             <span
-              className="font-black tracking-tight"
-              style={{ color: RED, fontSize: 150, lineHeight: 1 }}
+              className="font-extrabold tracking-tight"
+              style={{ color: GOLD, fontSize: 150, lineHeight: 1 }}
             >
-              PAID
+              AMBER
             </span>
           </motion.div>
 
-          {/* Typed sentences, above PAID */}
+          {/* Typed sentences, above the wordmark */}
           <div
             className="text-center"
             style={{
-              position: 'absolute',
-              top: '40%',
-              left: '50%',
-              width: 330,
-              transform: 'translate(-50%,-50%)',
+              position: "absolute",
+              top: "40%",
+              left: "50%",
+              width: 490,
+              transform: "translate(-50%,-50%)",
             }}
           >
             <AnimatePresence mode="wait">
@@ -466,5 +507,5 @@ export default function PaidSummit() {
         </div>
       </div>
     </main>
-  )
+  );
 }
