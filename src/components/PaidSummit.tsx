@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BedDouble, ConciergeBell, Utensils } from "lucide-react";
+import emblem from "../assets/amber-emblem.png";
 
 /* ------------------------------------------------------------------ *
  * AMBER — Amber Hospitality. Continuous looping brand promo.
@@ -206,22 +207,6 @@ function TypeWords({ text, speed = 200 }: { text: string; speed?: number }) {
   );
 }
 
-/** Hand-drawn ball with a meridian + orbiting marker so its spin reads. */
-function BallIcon() {
-  return (
-    <svg viewBox="0 0 100 100" className="h-full w-full" aria-hidden>
-      <g fill="none" stroke="currentColor" strokeWidth={2.5}>
-        <circle cx="50" cy="50" r="47" />
-        <ellipse cx="50" cy="50" rx="19" ry="47" />
-        <ellipse cx="50" cy="50" rx="47" ry="19" />
-        <line x1="3" y1="50" x2="97" y2="50" />
-        <line x1="50" y1="3" x2="50" y2="97" />
-      </g>
-      <circle cx="50" cy="14" r="5" fill="currentColor" />
-    </svg>
-  );
-}
-
 function LucideGlyph({ name }: { name: Exclude<IconName, "ball"> }) {
   const props = { strokeWidth: 1.4 as const, className: "h-[56%] w-[56%]" };
   switch (name) {
@@ -239,7 +224,7 @@ function LucideGlyph({ name }: { name: Exclude<IconName, "ball"> }) {
 }
 
 /** Icon anchored so its centre rides the box's right edge (overflow = half). */
-function IconStage({ name }: { name: IconName | null }) {
+function IconStage({ name, kind }: { name: IconName | null; kind: Kind }) {
   const reduce = useReducedMotion();
   return (
     <div
@@ -267,17 +252,23 @@ function IconStage({ name }: { name: IconName | null }) {
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           >
             {name === "ball" ? (
-              <motion.div
-                className="h-full w-full"
-                animate={reduce ? undefined : { rotate: 360 }}
-                transition={
-                  reduce
-                    ? undefined
-                    : { repeat: Infinity, ease: "linear", duration: 6 }
-                }
-              >
-                <BallIcon />
-              </motion.div>
+              <motion.img
+                src={emblem}
+                alt=""
+                draggable={false}
+                className="h-full w-full object-contain"
+                initial={{ rotate: 0 }}
+                // Lands on a multiple of 360° so it settles upright (A up).
+                animate={{
+                  rotate: reduce ? 0 : kind === "ballSweep" ? 1080 : 360,
+                }}
+                transition={{
+                  rotate: {
+                    duration: kind === "ballSweep" ? 2.4 : 1.5,
+                    ease: "linear",
+                  },
+                }}
+              />
             ) : (
               <LucideGlyph name={name} />
             )}
@@ -436,7 +427,7 @@ export default function PaidSummit() {
               </p>
             </motion.div>
 
-            <IconStage name={iconFor(step)} />
+            <IconStage name={iconFor(step)} kind={kind} />
           </motion.div>
 
           {/* Right-side welcome greetings */}
